@@ -11,7 +11,7 @@ import type {
 type StepState = "idle" | "loading" | "done";
 
 const regions: Region[] = ["US", "Europe", "Asia"];
-const MAX_VIDEO_SECONDS = 150;
+const MAX_VIDEO_SECONDS = 200;
 
 const initialSteps = {
   prompt: "idle" as StepState,
@@ -25,6 +25,7 @@ export default function Home() {
   const [people, setPeople] = useState("Couple cooking");
   const [region, setRegion] = useState<Region>("US");
   const [videoPrompt, setVideoPrompt] = useState("");
+  const [title, setTitle] = useState("Untitled Recipe");
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [loadingPrompt, setLoadingPrompt] = useState(false);
   const [loadingVideo, setLoadingVideo] = useState(false);
@@ -35,6 +36,11 @@ export default function Home() {
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [showRecipeModal, setShowRecipeModal] = useState<{
+    open: boolean;
+    title: string;
+    recipe: string;
+  }>({ open: false, title: "", recipe: "" });
 
   useEffect(() => {
     void fetchHistory();
@@ -94,6 +100,7 @@ export default function Home() {
 
       const data = await res.json();
       setVideoPrompt(data.videoPrompt);
+      if (data.title) setTitle(data.title);
       setSteps((prev) => ({ ...prev, prompt: "done" }));
       setShowPromptModal(true);
     } catch (err: any) {
@@ -122,7 +129,7 @@ export default function Home() {
       const res = await fetch("/api/generate-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipeText, people, region, videoPrompt }),
+        body: JSON.stringify({ recipeText, people, region, videoPrompt, title }),
       });
 
       if (!res.ok) {
@@ -145,12 +152,13 @@ export default function Home() {
         id: data.dbId,
         created_at: new Date().toISOString(),
         completed_at: new Date().toISOString(),
+        title,
         recipe_text: recipeText,
         people,
         region,
         video_prompt: videoPrompt,
         openai_video_id: data.openaiVideoId,
-        status: "completed",
+        status: data.status ?? "completed",
         error_message: null,
         supabase_path: data.supabasePath,
         video_url: data.videoUrl,
@@ -163,14 +171,18 @@ export default function Home() {
     } catch (err: any) {
       console.error(err);
       setError(err?.message ?? "Video generation failed.");
+      setElapsedSeconds(0);
+      setGenerationStartedAt(null);
       setSteps((prev) => ({ ...prev, generating: "idle" }));
     } finally {
       setLoadingVideo(false);
+      void fetchHistory();
     }
   }
 
   function handleSelectHistory(item: VideoGenerationRow) {
     setSelectedHistoryId(item.id);
+    setTitle(item.title ?? "Untitled Recipe");
     setRecipeText(item.recipe_text);
     setPeople(item.people);
     setRegion(item.region as Region);
@@ -337,6 +349,22 @@ export default function Home() {
                     <div className="text-xs text-gray-600">
                       {item.region} · {item.status}
                     </div>
+                    <div className="mt-1">
+                      <button
+                        className="text-xs text-hfGreen font-semibold underline"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowRecipeModal({
+                            open: true,
+                            title: item.title ?? "Recipe",
+                            recipe: item.recipe_text,
+                          });
+                        }}
+                      >
+                        Show recipe
+                      </button>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -372,6 +400,24 @@ export default function Home() {
                 disabled={!canGenerateVideo}
               >
                 {loadingVideo ? "Generating video..." : "Confirm and generate video"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showRecipeModal.open && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="card p-6 w-full max-w-2xl relative">
+            <h3 className="text-lg font-semibold text-hfDark mb-3">{showRecipeModal.title}</h3>
+            <div className="text-sm whitespace-pre-wrap text-hfDark/80 max-h-[50vh] overflow-auto border border-gray-200 rounded-xl p-3 bg-hfLight/60">
+              {showRecipeModal.recipe}
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowRecipeModal({ open: false, title: "", recipe: "" })}
+              >
+                Close
               </button>
             </div>
           </div>
