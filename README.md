@@ -52,5 +52,6 @@ Visit http://localhost:3000 and:
 ## Notes & Assumptions
 - Bucket `openai-hellofresh` must exist and be public for POC. Add lifecycle rules later if desired.
 - Uses `OPENAI_VIDEO_MODEL=sora-2` by default (override via env).
+- OpenAI Video API currently expects `seconds` in {4, 8, 12} and `size` in {720x1280, 1280x720, 1024x1792, 1792x1024}; defaults are 12s and 1280x720.
 - API routes are long-running; Next API route `maxDuration` set to 300s for video generation.
 - Service role key is used only on the server; never exposed to the client.

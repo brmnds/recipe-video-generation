@@ -48,9 +48,13 @@ export async function POST(req: NextRequest) {
 
   const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "openai-hellofresh";
   const videoModel = process.env.OPENAI_VIDEO_MODEL ?? "sora-2";
-  const videoSize = process.env.OPENAI_VIDEO_SIZE ?? "1280x720";
-  // API expects enumerated seconds; default to 12 if not set.
-  const videoSeconds = Number(process.env.OPENAI_VIDEO_SECONDS ?? "12");
+
+  const allowedSizes = ["720x1280", "1280x720", "1024x1792", "1792x1024"] as const;
+  const allowedSeconds = ["4", "8", "12"] as const;
+  const envSize = process.env.OPENAI_VIDEO_SIZE;
+  const envSeconds = process.env.OPENAI_VIDEO_SECONDS;
+  const videoSize = allowedSizes.includes(envSize as any) ? envSize! : "1280x720";
+  const videoSeconds = allowedSeconds.includes(envSeconds as any) ? envSeconds! : "12";
   const openaiApiKey = process.env.OPENAI_API_KEY;
 
   if (!openaiApiKey) {
