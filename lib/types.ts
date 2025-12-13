@@ -12,6 +12,7 @@ export interface VideoGenerationRow {
   id: string;
   created_at: string;
   completed_at: string | null;
+  title: string;
   recipe_text: string;
   people: string;
   region: Region;
@@ -25,6 +26,7 @@ export interface VideoGenerationRow {
 
 export interface VideoPromptResponse {
   videoPrompt: string;
+  title: string;
 }
 
 export interface GenerateVideoResponse {
@@ -33,4 +35,5 @@ export interface GenerateVideoResponse {
   videoUrl: string | null;
   openaiVideoId: string | null;
   supabasePath: string | null;
+  title?: string;
 }

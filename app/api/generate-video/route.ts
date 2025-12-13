@@ -40,10 +40,11 @@ export async function POST(req: NextRequest) {
   const people = (body?.people ?? "").trim();
   const region = body?.region as Region | undefined;
   const videoPrompt = (body?.videoPrompt ?? "").trim();
+  const title = (body?.title ?? "").trim();
 
-  if (!recipeText || !people || !region || !videoPrompt) {
+  if (!recipeText || !people || !region || !videoPrompt || !title) {
     return NextResponse.json(
-      { error: "recipeText, people, region, and videoPrompt are required" },
+      { error: "recipeText, people, region, title, and videoPrompt are required" },
       { status: 400 },
     );
   }
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
       people,
       region,
       video_prompt: videoPrompt,
+      title,
       status: "queued",
     })
     .select()

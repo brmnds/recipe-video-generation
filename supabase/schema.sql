@@ -6,6 +6,7 @@ create table if not exists public.video_generations (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
   completed_at timestamptz null,
+  title text not null default '',
   recipe_text text not null,
   people text not null,
   region text not null check (region in ('US', 'Europe', 'Asia')),
