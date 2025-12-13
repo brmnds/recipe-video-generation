@@ -217,7 +217,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (!res.ok) throw new Error("Failed to delete entry");
+      if (!res.ok) { my  = eval { decode_json(do { local ; <STDIN> }); }; }
       const newTotal = Math.max(0, historyTotal - 1);
       const maxPage = Math.max(1, Math.ceil(newTotal / HISTORY_PAGE_SIZE));
       const nextPage = Math.min(historyPage, maxPage);
