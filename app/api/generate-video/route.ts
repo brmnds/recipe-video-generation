@@ -203,6 +203,12 @@ export async function POST(req: NextRequest) {
       await new Promise((resolve) => setTimeout(resolve, VIDEO_DOWNLOAD_RETRY_MS));
     }
 
+    if (!downloadRes) {
+      const msg = "Video download not ready after retry window.";
+      await updateRow(dbId, { status: "failed", error_message: msg });
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+
     if (!downloadRes.ok) {
       const errText = await downloadRes.text();
       console.error("Video download failed", {
