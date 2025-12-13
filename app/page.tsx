@@ -11,6 +11,7 @@ import type {
 type StepState = "idle" | "loading" | "done";
 
 const regions: Region[] = ["US", "Europe", "Asia"];
+const MAX_VIDEO_SECONDS = 150;
 
 const initialSteps = {
   prompt: "idle" as StepState,
@@ -32,6 +33,7 @@ export default function Home() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<VideoGenerationRow[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
 
   useEffect(() => {
     void fetchHistory();
@@ -94,6 +96,7 @@ export default function Home() {
     setError(null);
     setShowPromptModal(false);
     setLoadingVideo(true);
+    setGenerationStartedAt(Date.now());
     setSteps({
       prompt: "done",
       generating: "loading",
@@ -120,6 +123,7 @@ export default function Home() {
         uploading: "done",
         done: "done",
       });
+      setGenerationStartedAt(null);
       setCurrentVideoUrl(data.videoUrl);
       setSelectedHistoryId(data.dbId);
       await fetchHistory();
@@ -237,6 +241,19 @@ export default function Home() {
               />
               <Step label="Done" state={steps.done} badge={statusBadge(steps.done)} />
             </div>
+            {(steps.generating === "loading" || steps.uploading === "loading") && (
+              <div className="mt-4 flex items-center gap-3 p-3 border border-hfGreen/30 rounded-xl bg-hfLight">
+                <div className="spinner" />
+                <div>
+                  <p className="font-semibold text-hfDark">
+                    Video generation in progress (up to {MAX_VIDEO_SECONDS}s)
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    We’ll poll until ready; you can keep this page open.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="card p-6">

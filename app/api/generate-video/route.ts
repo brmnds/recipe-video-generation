@@ -7,6 +7,8 @@ export const maxDuration = 300;
 
 const VIDEO_POLL_INTERVAL_MS = 2000;
 const VIDEO_POLL_TIMEOUT_MS = 3 * 60 * 1000;
+const VIDEO_DOWNLOAD_TIMEOUT_MS = 60 * 1000;
+const VIDEO_DOWNLOAD_RETRY_MS = 5000;
 
 type UpdateFields = Partial<{
   status: VideoStatus;
@@ -178,14 +180,28 @@ export async function POST(req: NextRequest) {
       console.warn("Video completed but URL missing; will try content endpoint directly.");
     }
 
-    const contentRes = await fetch(
-      `https://api.openai.com/v1/videos/${openaiVideoId}/content`,
-      { headers },
-    );
-    const downloadRes =
-      contentRes.ok || !videoUrl
-        ? contentRes
-        : await fetch(videoUrl).catch(() => contentRes); // fallback to provided URL if any
+    // Try to download; if content endpoint returns not ready (e.g., 404), retry for up to 60s.
+    let downloadRes: Response | null = null;
+    const downloadStart = Date.now();
+    while (Date.now() - downloadStart < VIDEO_DOWNLOAD_TIMEOUT_MS) {
+      const contentRes = await fetch(
+        `https://api.openai.com/v1/videos/${openaiVideoId}/content`,
+        { headers },
+      );
+      if (contentRes.ok) {
+        downloadRes = contentRes;
+        break;
+      }
+      // If content endpoint not ready, try provided videoUrl (if any)
+      if (videoUrl) {
+        const fallback = await fetch(videoUrl).catch(() => null);
+        if (fallback?.ok) {
+          downloadRes = fallback;
+          break;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, VIDEO_DOWNLOAD_RETRY_MS));
+    }
 
     if (!downloadRes.ok) {
       const errText = await downloadRes.text();

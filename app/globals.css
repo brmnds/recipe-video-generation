@@ -32,3 +32,18 @@ body {
 .btn-secondary {
   @apply bg-white text-hfDark border border-gray-200 font-semibold px-4 py-2 rounded-lg transition hover:bg-hfLight focus:outline-none focus:ring-2 focus:ring-hfGreen focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed;
 }
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(122, 193, 67, 0.2);
+  border-top-color: #7ac143;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
