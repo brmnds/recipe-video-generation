@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
   GenerateVideoResponse,
+  HistoryResponse,
   Region,
   VideoGenerationRow,
 } from "@/lib/types";
@@ -12,6 +13,7 @@ type StepState = "idle" | "loading" | "done";
 
 const regions: Region[] = ["US", "Europe", "Asia"];
 const MAX_VIDEO_SECONDS = 200;
+const HISTORY_PAGE_SIZE = 5;
 
 const initialSteps = {
   prompt: "idle" as StepState,
@@ -41,9 +43,13 @@ export default function Home() {
     title: string;
     recipe: string;
   }>({ open: false, title: "", recipe: "" });
+  const [historyTotal, setHistoryTotal] = useState<number>(0);
+  const [historyPage, setHistoryPage] = useState<number>(1);
+  const [editHistory, setEditHistory] = useState<boolean>(false);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    void fetchHistory();
+    void fetchHistory(1);
   }, []);
 
   useEffect(() => {
@@ -69,12 +75,17 @@ export default function Home() {
     [videoPrompt, loadingVideo],
   );
 
-  async function fetchHistory() {
+  async function fetchHistory(page = historyPage) {
     try {
-      const res = await fetch("/api/history", { cache: "no-store" });
+      const res = await fetch(
+        `/api/history?limit=${HISTORY_PAGE_SIZE}&page=${page}`,
+        { cache: "no-store" },
+      );
       if (!res.ok) return;
-      const data = await res.json();
+      const data: HistoryResponse = await res.json();
       setHistory(data.history ?? []);
+      setHistoryTotal(data.total ?? data.history?.length ?? 0);
+      setHistoryPage(page);
     } catch (err) {
       console.error("history fetch failed", err);
     }
@@ -165,9 +176,11 @@ export default function Home() {
       };
       setHistory((prev) => {
         const withoutDupes = prev.filter((p) => p.id !== data.dbId);
-        return [optimisticRow, ...withoutDupes].slice(0, 5);
+        return [optimisticRow, ...withoutDupes].slice(0, HISTORY_PAGE_SIZE);
       });
-      await fetchHistory();
+      setHistoryTotal((prev) => prev + 1);
+      setHistoryPage(1);
+      await fetchHistory(1);
     } catch (err: any) {
       console.error(err);
       setError(err?.message ?? "Video generation failed.");
@@ -176,7 +189,7 @@ export default function Home() {
       setSteps((prev) => ({ ...prev, generating: "idle" }));
     } finally {
       setLoadingVideo(false);
-      void fetchHistory();
+      void fetchHistory(historyPage);
     }
   }
 
@@ -194,6 +207,47 @@ export default function Home() {
       uploading: item.status === "completed" ? "done" : "idle",
       done: item.status === "completed" ? "done" : "idle",
     });
+  }
+
+  async function handleDeleteHistory(id: string) {
+    try {
+      setPendingDeleteIds((prev) => new Set(prev).add(id));
+      const res = await fetch("/api/history", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("Failed to delete entry");
+      const newTotal = Math.max(0, historyTotal - 1);
+      const maxPage = Math.max(1, Math.ceil(newTotal / HISTORY_PAGE_SIZE));
+      const nextPage = Math.min(historyPage, maxPage);
+      setHistoryTotal(newTotal);
+      await fetchHistory(nextPage);
+    } catch (err) {
+      console.error(err);
+      setError("Could not delete history entry.");
+    } finally {
+      setPendingDeleteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(historyTotal / HISTORY_PAGE_SIZE));
+
+  function canGoPrev() {
+    return historyPage > 1;
+  }
+
+  function canGoNext() {
+    return historyPage < totalPages;
+  }
+
+  function handlePageChange(next: number) {
+    const clamped = Math.min(Math.max(1, next), totalPages);
+    void fetchHistory(clamped);
   }
 
   function statusBadge(state: StepState) {
@@ -319,12 +373,20 @@ export default function Home() {
           <div className="card p-6">
             <div className="flex justify-between items-center mb-3">
               <h2 className="text-xl font-semibold text-hfDark">History</h2>
-              <button
-                onClick={() => void fetchHistory()}
-                className="text-sm text-hfGreen font-semibold"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => void fetchHistory(historyPage)}
+                  className="text-sm text-hfGreen font-semibold"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={() => setEditHistory((prev) => !prev)}
+                  className="text-sm text-hfGreen font-semibold flex items-center gap-1"
+                >
+                  ✏️ {editHistory ? "Done" : "Edit"}
+                </button>
+              </div>
             </div>
             {history.length === 0 ? (
               <p className="text-sm text-hfDark/70">No videos yet.</p>
@@ -364,11 +426,45 @@ export default function Home() {
                       >
                         Show recipe
                       </button>
+                      {editHistory && (
+                        <button
+                          className="ml-3 text-xs text-red-600 font-semibold underline disabled:opacity-60"
+                          type="button"
+                          disabled={pendingDeleteIds.has(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDeleteHistory(item.id);
+                          }}
+                        >
+                          {pendingDeleteIds.has(item.id) ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
                     </div>
                   </button>
                 ))}
               </div>
             )}
+            <div className="mt-4 flex items-center justify-between text-sm text-hfDark/80">
+              <div>
+                Page {historyPage} / {totalPages}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="btn-secondary px-3 py-1 text-sm"
+                  disabled={!canGoPrev()}
+                  onClick={() => handlePageChange(historyPage - 1)}
+                >
+                  Prev
+                </button>
+                <button
+                  className="btn-secondary px-3 py-1 text-sm"
+                  disabled={!canGoNext()}
+                  onClick={() => handlePageChange(historyPage + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

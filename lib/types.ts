@@ -37,3 +37,8 @@ export interface GenerateVideoResponse {
   supabasePath: string | null;
   title?: string;
 }
+
+export interface HistoryResponse {
+  history: VideoGenerationRow[];
+  total: number;
+}
