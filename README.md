@@ -1,57 +1,57 @@
 # HelloFresh Cooking Video POC
 
-A minimal Next.js (App Router) app that turns a pasted recipe into a generated cooking video via OpenAI Video (Sora) and stores results in Supabase (DB + Storage). HelloFresh-inspired styling with prompt review modal, step tracker, preview, and history.
+A one-page Next.js app that turns a pasted recipe into a generated cooking video via OpenAI Video (Sora) and stores results in Supabase (DB + Storage). Features prompt review, step tracker with spinner + elapsed timer, preview, and history (immediate optimistic insert + refresh).
 
-## Quickstart
+## What it does
+- Accepts recipe text, “who should be shown”, and region (US/Europe/Asia).
+- Generates a region-aware video prompt (OpenAI text model) and lets you edit/confirm it.
+- Creates a Sora video job (size/seconds per API limits), polls until complete, downloads the MP4, uploads to Supabase Storage, and writes a DB row.
+- Shows status with spinner and elapsed seconds (up to 150s), then plays the video and lists it in History (last 5, clickable to reload).
 
-1) **Install**
+## Prerequisites
+- Supabase project with bucket `openai-hellofresh` set to public.
+- Run `supabase/schema.sql` in Supabase to create the table/indexes.
+- Node.js 18+ recommended.
+
+## Setup
+1) Install deps  
 ```bash
 npm install
 ```
 
-2) **Configure env**
+2) Configure env  
 ```bash
 cp .env.local.example .env.local
 # Fill: OPENAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
+# Optional: OPENAI_VIDEO_SIZE (720x1280 | 1280x720 | 1024x1792 | 1792x1024)
+# Optional: OPENAI_VIDEO_SECONDS (4 | 8 | 12)
 ```
 
-3) **Supabase setup**
-- In Supabase SQL editor, run `supabase/schema.sql`.
-- Create Storage bucket `openai-hellofresh` and set it to public (no RLS for POC).
-
-4) **Run**
+3) Run dev server  
 ```bash
 npm run dev
 ```
-Visit http://localhost:3000 and:
-- Paste a recipe, set people + region.
-- Click "Generate cooking video" → review/edit prompt → confirm.
-- Wait for processing; video will upload to Supabase and appear in preview/history.
+Visit http://localhost:3000, enter inputs, generate prompt → confirm → wait for video.
 
-## Tech
-- Next.js 14 (App Router) + TypeScript + Tailwind.
-- OpenAI (text prompt + Sora video) via official API.
-- Supabase (Postgres + Storage) using service role server-side only.
+## Tech stack
+- Next.js 14 (App Router) + TypeScript + TailwindCSS
+- OpenAI Node SDK (video + chat)
+- Supabase: Postgres + Storage (service role server-side only)
 
-## Key Routes
-- `POST /api/video-prompt` — builds region-aware video prompt from recipe + people.
-- `POST /api/generate-video` — inserts DB row, calls OpenAI Video, polls, downloads MP4, uploads to Supabase Storage, updates row, returns URL.
-- `GET /api/history` — last 5 videos for the History panel.
+## API routes
+- `POST /api/video-prompt` — builds the region-aware video prompt.
+- `POST /api/generate-video` — inserts DB row, calls OpenAI Video with `{model, prompt, size, seconds}`, polls `/v1/videos/{id}`, retries download from `/v1/videos/{id}/content`, uploads MP4 to Supabase, updates row, returns URLs/ids.
+- `GET /api/history` — fetches last 5 rows for the History list.
 
-## Files to Note
-- `app/page.tsx` — UI with form, modal, step tracker, preview, history.
-- `app/api/video-prompt/route.ts` — prompt generation logic.
-- `app/api/generate-video/route.ts` — full video pipeline (OpenAI Video → download → Supabase upload).
-- `lib/supabaseServer.ts` — server-side Supabase client (service role).
-- `lib/openai.ts` — OpenAI client (server only).
-- `supabase/schema.sql` — DB schema and indexes.
-- `docs/design.md` — HelloFresh-style design guide.
-- `docs/db-schema.md` — schema reference.
-- `docs/build-plan.md` — condensed build steps.
+## Key files
+- `app/page.tsx` — UI, status/timer, preview, history (optimistic update).
+- `app/api/video-prompt/route.ts` — prompt creation.
+- `app/api/generate-video/route.ts` — video job create → poll → download (with retry) → Supabase upload.
+- `lib/openai.ts`, `lib/supabaseServer.ts`, `lib/types.ts`
+- `supabase/schema.sql` — DB schema/indexes (no RLS for POC).
+- Docs: `docs/design.md`, `docs/db-schema.md`, `docs/build-plan.md`, `agents.md`.
 
-## Notes & Assumptions
-- Bucket `openai-hellofresh` must exist and be public for POC. Add lifecycle rules later if desired.
-- Uses `OPENAI_VIDEO_MODEL=sora-2` by default (override via env).
-- OpenAI Video API currently expects `seconds` in {4, 8, 12} and `size` in {720x1280, 1280x720, 1024x1792, 1792x1024}; defaults are 12s and 1280x720.
-- API routes are long-running; Next API route `maxDuration` set to 300s for video generation.
-- Service role key is used only on the server; never exposed to the client.
+## Notes & limits
+- OpenAI Video API: `seconds` must be one of {4, 8, 12}; `size` must be one of {720x1280, 1280x720, 1024x1792, 1792x1024}. Defaults: 12s, 1280x720.
+- Long-running route: `maxDuration` set to 300s.
+- History shows the new video immediately (optimistic) and refreshes from Supabase; selecting a history item reloads its video/inputs.
