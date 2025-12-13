@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
 
   const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "openai-hellofresh";
   const videoModel = process.env.OPENAI_VIDEO_MODEL ?? "sora-2";
+  const videoSize = process.env.OPENAI_VIDEO_SIZE ?? "1280x720";
+  const videoSeconds = Number(process.env.OPENAI_VIDEO_SECONDS ?? "45");
   const openaiApiKey = process.env.OPENAI_API_KEY;
 
   if (!openaiApiKey) {
@@ -87,10 +89,11 @@ export async function POST(req: NextRequest) {
     const createRes = await fetch("https://api.openai.com/v1/videos", {
       method: "POST",
       headers,
-      // Keep payload lean; some fields (e.g., duration/resolution) may be rejected by the API.
       body: JSON.stringify({
         model: videoModel,
         prompt: videoPrompt,
+        size: videoSize,
+        seconds: videoSeconds,
       }),
     });
 
@@ -166,17 +169,19 @@ export async function POST(req: NextRequest) {
       await new Promise((resolve) => setTimeout(resolve, VIDEO_POLL_INTERVAL_MS));
     }
 
-    if (!videoUrl) {
-      const msg =
-        errorMessage ??
-        (lastStatus === "completed"
-          ? "Video URL missing in OpenAI response."
-          : "Timed out waiting for video to complete.");
-      await updateRow(dbId, { status: "failed", error_message: msg });
-      return NextResponse.json({ error: msg }, { status: 500 });
+    if (!videoUrl && lastStatus === "completed") {
+      console.warn("Video completed but URL missing; will try content endpoint directly.");
     }
 
-    const downloadRes = await fetch(videoUrl);
+    const contentRes = await fetch(
+      `https://api.openai.com/v1/videos/${openaiVideoId}/content`,
+      { headers },
+    );
+    const downloadRes =
+      contentRes.ok || !videoUrl
+        ? contentRes
+        : await fetch(videoUrl).catch(() => contentRes); // fallback to provided URL if any
+
     if (!downloadRes.ok) {
       const errText = await downloadRes.text();
       console.error("Video download failed", {
