@@ -34,10 +34,24 @@ export default function Home() {
   const [history, setHistory] = useState<VideoGenerationRow[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   useEffect(() => {
     void fetchHistory();
   }, []);
+
+  useEffect(() => {
+    if (!generationStartedAt) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setElapsedSeconds(
+        Math.min(MAX_VIDEO_SECONDS, Math.floor((Date.now() - generationStartedAt) / 1000)),
+      );
+    }, 1000);
+    return () => clearInterval(id);
+  }, [generationStartedAt]);
 
   const canGeneratePrompt = useMemo(
     () => recipeText.trim().length > 0 && people.trim().length > 0 && !loadingPrompt,
@@ -123,9 +137,28 @@ export default function Home() {
         uploading: "done",
         done: "done",
       });
+      setElapsedSeconds(0);
       setGenerationStartedAt(null);
       setCurrentVideoUrl(data.videoUrl);
       setSelectedHistoryId(data.dbId);
+      const optimisticRow: VideoGenerationRow = {
+        id: data.dbId,
+        created_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+        recipe_text: recipeText,
+        people,
+        region,
+        video_prompt: videoPrompt,
+        openai_video_id: data.openaiVideoId,
+        status: "completed",
+        error_message: null,
+        supabase_path: data.supabasePath,
+        video_url: data.videoUrl,
+      };
+      setHistory((prev) => {
+        const withoutDupes = prev.filter((p) => p.id !== data.dbId);
+        return [optimisticRow, ...withoutDupes].slice(0, 5);
+      });
       await fetchHistory();
     } catch (err: any) {
       console.error(err);
@@ -249,7 +282,7 @@ export default function Home() {
                     Video generation in progress (up to {MAX_VIDEO_SECONDS}s)
                   </p>
                   <p className="text-xs text-gray-600">
-                    We’ll poll until ready; you can keep this page open.
+                    Elapsed: {elapsedSeconds}s — we’ll poll until ready; you can keep this page open.
                   </p>
                 </div>
               </div>
