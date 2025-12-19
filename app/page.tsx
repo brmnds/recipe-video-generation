@@ -264,10 +264,10 @@ export default function Home() {
     <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
       <header className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-hfGreen/90 shadow-soft flex items-center justify-center text-white font-bold">
-          🍋
+          🍃
         </div>
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-hfDark/70">HelloFresh</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-hfDark/70">HEALTHYFRESH</p>
           <h1 className="text-3xl font-bold text-hfDark">
             Cooking Video POC
           </h1>

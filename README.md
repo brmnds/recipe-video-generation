@@ -1,4 +1,4 @@
-# HelloFresh Cooking Video POC
+# HEALTHYFRESH Cooking Video POC
 
 A one-page Next.js app that turns a pasted recipe into a generated cooking video via OpenAI Video (Sora) and stores results in Supabase (DB + Storage). Features prompt review, step tracker with spinner + elapsed timer, preview, and history (immediate optimistic insert + refresh).
 

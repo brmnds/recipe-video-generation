@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
         : "Use slightly faster cuts and dynamic plating shots.";
 
   const systemPrompt = `
-You are a precise video director crafting a cooking video prompt for a HelloFresh-style brand AND a concise recipe title.
-- Initially show a HelloFresh-like green lemon logo.
+You are a precise video director crafting a cooking video prompt for a HEALTHYFRESH-style brand AND a concise recipe title.
+- Initially show a HEALTHYFRESH-like green leaf logo.
 - Then show all ingredients laid out on one table.
 - Then show the cooking steps clearly with minimal cuts.
 - At the end show happy, fulfilled people enjoying the meal.

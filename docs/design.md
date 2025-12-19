@@ -1,8 +1,8 @@
-## Design Guide (HelloFresh-Inspired)
+## Design Guide (HEALTHYFRESH-Inspired)
 
 **Look & Feel**
 - Clean white canvas with soft gray borders and gentle shadows; subtle radial green background wash.
-- Primary color: `#7AC143` (HelloFresh green). Secondary text: `#1E2B20`. Light surface: `#F7FAF5`.
+- Primary color: `#7AC143` (HEALTHYFRESH green). Secondary text: `#1E2B20`. Light surface: `#F7FAF5`.
 - Rounded corners (12–16px) and soft card shadows for depth without clutter.
 
 **Typography**
@@ -18,7 +18,7 @@
 
 **Layout**
 - Two-column grid on desktop: left for inputs, right for status/preview/history; stack on mobile.
-- Header row with lemon icon and “HelloFresh Cooking Video POC” title.
+- Header row with leaf icon and “HEALTHYFRESH Cooking Video POC” title.
 - Right rail groups: Status panel, Video preview, History list.
 
 **Motion**

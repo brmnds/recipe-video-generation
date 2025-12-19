@@ -8,7 +8,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "HelloFresh Cooking Video POC",
+  title: "HEALTHYFRESH Cooking Video POC",
   description:
     "Generate region-aware cooking videos from recipes using OpenAI Video and Supabase.",
 };
