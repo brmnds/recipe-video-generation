@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const VIDEO_POLL_INTERVAL_MS = 2000;
-const VIDEO_POLL_TIMEOUT_MS = 3 * 60 * 1000;
-const VIDEO_DOWNLOAD_TIMEOUT_MS = 60 * 1000;
+const VIDEO_POLL_TIMEOUT_MS = 4 * 60 * 1000; // allow a bit more time for long renders
+const VIDEO_DOWNLOAD_TIMEOUT_MS = 2 * 60 * 1000; // wait longer for content endpoint to become ready
 const VIDEO_DOWNLOAD_RETRY_MS = 5000;
 
 type UpdateFields = Partial<{
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
       console.warn("Video completed but URL missing; will try content endpoint directly.");
     }
 
-    // Try to download; if content endpoint returns not ready (e.g., 404), retry for up to 60s.
+    // Try to download; if content endpoint returns not ready (e.g., 404), retry for up to the timeout.
     let downloadRes: Response | null = null;
     const downloadStart = Date.now();
     while (Date.now() - downloadStart < VIDEO_DOWNLOAD_TIMEOUT_MS) {
@@ -206,7 +206,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!downloadRes) {
-      const msg = "Video download not ready after retry window.";
+      const waitedSeconds = Math.round((Date.now() - downloadStart) / 1000);
+      const msg = `Video download not ready after waiting ${waitedSeconds}s. The job may still be processing—please try again shortly.`;
       await updateRow(dbId, { status: "failed", error_message: msg });
       return NextResponse.json({ error: msg }, { status: 500 });
     }
