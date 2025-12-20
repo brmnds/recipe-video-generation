@@ -17,9 +17,20 @@ export async function GET(req: NextRequest) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  const { data, error, count } = await supabaseServerClient
+  const { count, error: countError } = await supabaseServerClient
     .from("video_generations")
-    .select("*", { count: "exact" })
+    .select("*", { count: "exact", head: true });
+
+  if (countError) {
+    return NextResponse.json(
+      { error: countError.message ?? "Failed to fetch history count" },
+      { status: 500 },
+    );
+  }
+
+  const { data, error } = await supabaseServerClient
+    .from("video_generations")
+    .select("*")
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -30,5 +41,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ history: data ?? [], total: count ?? data?.length ?? 0 });
+  return NextResponse.json(
+    { history: data ?? [], total: count ?? data?.length ?? 0 },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
